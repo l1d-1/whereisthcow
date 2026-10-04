@@ -572,12 +572,6 @@ button {
 
   <p class="hint" id="hint">上传任意一张图片，开始和🐄玩捉迷藏吧！</p>
 
-  <div class="sizes" id="sizes" role="radiogroup" aria-label="要种的🐄的大小" hidden>
-    <button class="size" type="button" role="radio" data-size="S" aria-checked="true">小🐄</button>
-    <button class="size" type="button" role="radio" data-size="M" aria-checked="false">中🐄</button>
-    <button class="size" type="button" role="radio" data-size="L" aria-checked="false">大🐄</button>
-  </div>
-
   <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-hide">
     <button class="empty" id="empty" type="button">
       <svg class="patch a"><use href="#blob-a"/></svg>
@@ -596,6 +590,12 @@ button {
   <div class="status" aria-live="polite">
     <span id="status"></span>
     <button class="undo" id="undo" type="button" hidden>撤回一只</button>
+  </div>
+
+  <div class="sizes" id="sizes" role="radiogroup" aria-label="要种的🐄的大小" hidden>
+    <button class="size" type="button" role="radio" data-size="S" aria-checked="true">小🐄</button>
+    <button class="size" type="button" role="radio" data-size="M" aria-checked="false">中🐄</button>
+    <button class="size" type="button" role="radio" data-size="L" aria-checked="false">大🐄</button>
   </div>
 
   <div class="actions" id="actions">
@@ -1029,10 +1029,10 @@ button {
   }
 
   /* 越靠照片上方（通常越远）越小一点，更像“真的在那儿” */
-  function cowSize(st, y) {
+  function cowSize(st, y, mult = 1) {
     const H = st.canvas.height;
     const depth = 0.85 + 0.4 * clamp(y / H, 0, 1);
-    const base = Math.min(st.canvas.width, H) * COW_RATIO * depth * rand(0.94, 1.08);
+    const base = Math.min(st.canvas.width, H) * COW_RATIO * mult * depth * rand(0.94, 1.08);
     return Math.max(MIN_COW, Math.round(base / 2) * 2);   // 偶数，保证“？”正好是一半
   }
   const randomQ = () => ['left', 'top', 'right'][Math.floor(Math.random() * 3)];
@@ -1103,6 +1103,8 @@ button {
     const cows = [];
     let minD = Math.hypot(edge.aw, edge.ah) * 0.16;
     for (let i = 0; i < n; i++) {
+      // 每只🐄的大小随机：从最小（1 倍）到 3 倍多，小的多、大的少——有的一眼能看到，有的得放大找
+      const mult = 1 + 2.2 * Math.random() ** 2;
       let cow = null;
       for (let tries = 0; tries < 120 && !cow; tries++) {
         if (tries % 30 === 29) minD *= 0.7;
@@ -1110,7 +1112,7 @@ button {
         if (!c) break;
         if (!cows.every((o) => Math.hypot(o.ax - c.x, o.ay - c.y) >= minD)) continue;
         const px = (c.x + 0.5) * edge.sx, py = (c.y + 0.5) * edge.sy;
-        const size = cowSize(st, py), sp = cowSprite(size);
+        const size = cowSize(st, py, mult), sp = cowSprite(size);
         const u = spotUp(edge, c.y * edge.aw + c.x);
         const foot = refineFoot(st, px, py, u, sp.w / 2, Math.ceil(Math.max(edge.sx, edge.sy) * 1.5) + 2);
         const made = {
@@ -1121,7 +1123,7 @@ button {
         if (fits(st, made)) cow = faceUphill(made);
       }
       if (!cow) {                                              // 照片上找不到线（比如纯色图）：随便找个地方站
-        const size = cowSize(st, H / 2);
+        const size = cowSize(st, H / 2, mult);
         const ax = rand(mx, edge.aw - mx), ay = rand(my, edge.ah - my);
         cow = fitUpright(st, { cx: ax * edge.sx, footY: ay * edge.sy, size, sink: 0, flip: Math.random() < 0.5, q: randomQ(), ax, ay });
       }
@@ -1350,7 +1352,7 @@ button {
     }
     if (!st.busy) el.status.textContent = status;
     el.undo.hidden = !(mode === 'plant' && has && st.cows.length > 0);
-    el.hint.hidden = has;                                   // 照片上传后提示语收起，把地方让给照片（种🐄模式里换成大小选择）
+    el.hint.hidden = has;                                   // 照片上传后，顶部的提示语收起，把地方让给照片
     el.sizes.hidden = !(mode === 'plant' && has);
     layoutMarks();
   }
@@ -1439,20 +1441,44 @@ button {
     if (f) loadFile(f);
   });
 
+  let toldTapToRemove = false;
   states.plant.canvas.addEventListener('click', (e) => {
     const st = states.plant;
     if (!st.img || st.busy || !st.edge) return;
-    if (st.cows.length >= MAX_COWS) { toast(`一张照片最多藏 ${MAX_COWS} 只🐄，可以先撤回一只`); return; }
     const r = st.canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
+    const scale = st.canvas.width / r.width;                    // 屏幕上 1px 对应照片上多少像素
     const ix = clamp((e.clientX - r.left) / r.width, 0, 1) * st.canvas.width;
     const iy = clamp((e.clientY - r.top) / r.height, 0, 1) * st.canvas.height;
+
+    // 点在已经种下的🐄身上：把这一只撤回
+    let hit = -1, bestD = Infinity;
+    st.cows.forEach((cow, i) => {
+      const c = cowCenter(cow), dist = Math.hypot(ix - c.x, iy - c.y);
+      if (dist <= Math.max(cow.size * 0.6, 16 * scale) && dist <= bestD) { hit = i; bestD = dist; }
+    });
+    if (hit >= 0) {
+      const c = cowCenter(st.cows[hit]), p = toStage(st, c.x, c.y);
+      st.cows.splice(hit, 1);
+      redraw(st);
+      prepareBlob(st);
+      const ring = document.createElement('i');
+      ring.className = 'ring miss';
+      ring.style.left = p.x + 'px'; ring.style.top = p.y + 'px';
+      el.fx.appendChild(ring);
+      setTimeout(() => ring.remove(), 500);
+      render();
+      return;
+    }
+
+    if (st.cows.length >= MAX_COWS) { toast(`一张照片最多藏 ${MAX_COWS} 只🐄，点一下已经种下的🐄可以撤回`); return; }
     const cow = plantAt(st, ix, iy);
     st.cows.push(cow);
     drawCow(st.ctx, cow);
     prepareBlob(st);
     popAt(st, cow);
     render();
+    if (!toldTapToRemove) { toldTapToRemove = true; toast('种好了！再点一下这只🐄，可以把它撤回'); }
   });
 
   /* 捉迷藏：直接在照片上点🐄。找到一只，奖励一杯🥛 */
