@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>🐄在哪里？</title>
-<meta name="description" content="一个可以让你的照片里长出🐄的地方。">
+<meta name="description" content="一个可以让你的图片里长出🐄的地方。">
 <meta name="theme-color" content="#7ED06B">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐄%3C/text%3E%3C/svg%3E">
 <style>
@@ -330,6 +330,37 @@ button {
   font-weight: 600;
   line-height: 1.6;
 }
+.egg-arrow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.egg-arrow .under { stroke: var(--ink); stroke-width: 9; }
+.egg-arrow .over { stroke: var(--milk); stroke-width: 4.5; }
+.egg-arrow path { stroke-dasharray: 90; stroke-dashoffset: 90; animation: draw .5s ease-out forwards; }
+.egg-arrow path + path { animation-delay: .4s; animation-duration: .2s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.quiz { margin-top: 12px; }
+.quiz-opts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.quiz-opt {
+  min-height: 44px;
+  border: var(--line);
+  border-radius: 14px;
+  background: var(--milk);
+  box-shadow: 0 4px 0 var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+  transition: transform .08s, box-shadow .08s;
+}
+.quiz-opt:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.quiz-opt:disabled { cursor: default; color: #8a8a8a; border-color: #8a8a8a; background: #eef1ec; box-shadow: 0 4px 0 #8a8a8a; }
+.quiz-opt.wrong { text-decoration: line-through; }
+.quiz-opt.right:disabled { color: var(--ink); border-color: var(--ink); background: var(--nose); box-shadow: 0 4px 0 var(--ink); }
+.quiz-msg { margin-top: 14px; min-height: 1.6em; font-size: 15px; font-weight: 800; line-height: 1.6; text-align: center; }
+.quiz-prize { padding-top: 26px; text-align: center; animation: prize .6s cubic-bezier(.2, 1.5, .4, 1) both; }
+.quiz-prize .mark { font-size: 64px; margin: 0; }
+.quiz-prize .q { color: var(--nose); }
+@keyframes prize {
+  from { transform: translateY(-18px) scale(.2) rotate(-25deg); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
 .egg-photo {
   display: block;
   width: 100%;
@@ -341,11 +372,19 @@ button {
 .foot {
   margin-top: 30px;
   text-align: center;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 400;
   line-height: 1.7;
+  color: rgba(0, 0, 0, .5);
 }
-.foot span { display: inline-block; }
+.foot span, .intro-foot span { display: inline-block; }
+.intro-foot {
+  margin-top: 16px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.7;
+  color: rgba(0, 0, 0, .5);
+}
 .egg .bye { margin-top: 22px; font-size: 18px; font-weight: 900; }
 
 /* ---------- 浮层 ---------- */
@@ -437,6 +476,11 @@ button {
 }
 
 @media (max-height: 560px) {
+  #intro .card { padding: 20px 18px 14px; }
+  .intro-mark { margin: 2px 0 8px; }
+  .intro-text { gap: 8px; font-size: 14.5px; line-height: 1.6; }
+  #intro .card .go { margin-top: 14px; }
+  .intro-foot { margin-top: 10px; }
   .hint { min-height: 0; }
   .btn, .card .go { min-height: 46px; }
   .mark { font-size: 46px; }
@@ -444,6 +488,9 @@ button {
 @media (prefers-reduced-motion: reduce) {
   #intro .card, .pop, .ring { animation: none; }
   .cheer { animation: none; transition: opacity .4s 1.1s; }
+  .egg-arrow path { animation: none; stroke-dashoffset: 0; }
+  .quiz-prize { animation: none; }
+  .quiz-opt { transition: none; }
   .pop { display: none; }
   .ring { opacity: 0; transition: opacity .6s; }
   .btn { transition: none; }
@@ -474,11 +521,11 @@ button {
       <svg class="patch b"><use href="#blob-b"/></svg>
       <svg class="patch c"><use href="#blob-c"/></svg>
       <span class="mark" aria-hidden="true">🐄<span class="q">？</span></span>
-      <strong>这里还没有照片</strong>
+      <strong>这里还没有图片</strong>
       <span class="sub">点这里，从相册选一张</span>
     </button>
-    <canvas id="cv-hide" role="img" aria-label="藏着🐄的照片，点击照片上的🐄把它找出来" hidden></canvas>
-    <canvas id="cv-plant" role="img" aria-label="可以点击种🐄的照片" hidden></canvas>
+    <canvas id="cv-hide" role="img" aria-label="藏着🐄的图片，点击图片上的🐄把它找出来" hidden></canvas>
+    <canvas id="cv-plant" role="img" aria-label="可以点击种🐄的图片" hidden></canvas>
     <div class="marks" id="marks" aria-hidden="true"></div>
     <div class="fx" id="fx" aria-hidden="true"></div>
   </div>
@@ -495,7 +542,7 @@ button {
     </button>
     <button class="btn" id="download" type="button" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>
-      <span id="download-label">寻找🐄！</span>
+      <span id="download-label">带走🐄！</span>
     </button>
   </div>
 
@@ -507,19 +554,34 @@ button {
     <svg class="patch a"><use href="#blob-b"/></svg>
     <svg class="patch b"><use href="#blob-c"/></svg>
     <h2 id="egg-title">小彩蛋🥚！</h2>
-    <p class="lead">恭喜你发现了「🐄在哪」的灵感来源</p>
+    <p class="lead">恭喜你发现了「🐄在哪里？」的灵感来源</p>
     <div class="story">
       <p>起因是在路上碰到了一只野生奶牛猫。</p>
       <p>正想将奶牛猫照片发给挚友时，刚打出“奶牛”，键盘里就跳出了一只“🐄”。</p>
       <p>然后惊奇地发现照片上的奶牛猫和emoji🐄的花纹长得超级无敌特别像。</p>
-      <p>于是想立刻奔走相告、告诉全宇宙的亲朋好友，但又感觉只靠配文来解释这个发现有多搞笑还不够得劲儿，就试图在奶牛猫旁边直接贴上🐄贴图。</p>
+      <p>于是想立刻奔走相告，昭告全宇宙的亲朋好友，但又感觉只靠配文来解释这个发现有多搞笑还不够得劲儿，就试图在奶牛猫旁边直接贴上🐄贴图。</p>
       <p>然后不知道为什么。。我相册里的猫图都突然长出了奶牛。。。。</p>
     </div>
     <figure class="egg-figure">
       <img class="egg-photo" id="egg-photo" width="1080" height="1440" decoding="async"
            alt="草地上站着一只黑白花的奶牛猫，旁边贴着一只🐄，树上、空调外机上和远处还藏着好几只带问号的小🐄">
       <figcaption>找找这张图上有几只🐄</figcaption>
+      <svg class="egg-arrow" id="egg-arrow" viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true" hidden>
+        <g class="under"><path d="M268 356 C274 332 262 310 238 298"/><path d="M245 309 L238 298 L251 297"/></g>
+        <g class="over"><path d="M268 356 C274 332 262 310 238 298"/><path d="M245 309 L238 298 L251 297"/></g>
+      </svg>
     </figure>
+    <div class="quiz" role="group" aria-label="这张图上有几只🐄？">
+      <div class="quiz-opts">
+        <button class="quiz-opt" type="button" data-n="1" aria-label="1 只">1</button>
+        <button class="quiz-opt" type="button" data-n="2" aria-label="2 只">2</button>
+        <button class="quiz-opt" type="button" data-n="3" aria-label="3 只">3</button>
+        <button class="quiz-opt" type="button" data-n="4" aria-label="4 只">4</button>
+        <button class="quiz-opt" type="button" data-n="5" aria-label="5 只">5</button>
+      </div>
+      <p class="quiz-msg" id="quiz-msg" aria-live="polite"></p>
+      <div class="quiz-prize" id="quiz-prize" aria-hidden="true" hidden><span class="mark">🐄<span class="q">？</span></span></div>
+    </div>
     <p class="bye">祝你玩得开心！</p>
   </div>
   <footer class="foot">
@@ -535,11 +597,15 @@ button {
     <svg class="patch b"><use href="#blob-b"/></svg>
     <div class="mark intro-mark" aria-hidden="true">🐄<span class="q">？</span></div>
     <div class="intro-text">
-      <p>这是一个可以让你的照片里长出🐄的地方。</p>
-      <p>你可以随机让🐄出现在照片里的任意位置，并且尝试找到🐄！</p>
-      <p>也可以自己在照片里种下🐄，将它们转发给你的亲朋好友，让大家一起来找出🐄！</p>
+      <p>这是一个可以让你的图片里长出🐄的地方。</p>
+      <p>你可以让🐄随机出现在图片里，再试着把它们找出来！</p>
+      <p>也可以自己种下🐄，把图片转给亲朋好友一起找！</p>
     </div>
     <button class="go" id="intro-go" type="button">点任意位置，开始找🐄</button>
+    <div class="intro-foot">
+      <p>© 2026 🐄在哪里？</p>
+      <p><span>本网页不会采集您的任何个人图文信息，</span><span>内容仅供娱乐。</span></p>
+    </div>
   </div>
 </div>
 
@@ -549,7 +615,7 @@ button {
     <svg class="patch a"><use href="#blob-c"/></svg>
     <div class="big" aria-hidden="true">🐄</div>
     <h2 id="done-title">下载成功</h2>
-    <p class="msg">🐄已经统治了这张照片！谢谢你为🐄统治全宇宙的计划作出的伟大贡献哞</p>
+    <p class="msg">🐄已经统治了这张图片！谢谢你为🐄统治全宇宙的计划作出的伟大贡献哞</p>
     <button class="go" id="done-go" type="button">哞！</button>
   </div>
 </div>
@@ -557,7 +623,7 @@ button {
 <!-- 微信等 App 内无法直接下载时：长按保存 -->
 <div class="overlay" id="sheet" role="dialog" aria-modal="true" aria-label="保存图片" tabindex="-1" hidden>
   <div class="card">
-    <img id="sheet-img" alt="处理好的照片">
+    <img id="sheet-img" alt="处理好的图片">
     <p>长按上面的图片，选择“保存图片”</p>
     <div class="row">
       <button class="go plain" id="sheet-close" type="button">关闭</button>
@@ -590,10 +656,10 @@ button {
     hide: {
       hint: '上传任意一张图片，开始和🐄玩捉迷藏吧！',
       upload: '🐄出没！',
-      download: '寻找🐄！',
+      download: '带走🐄！',
     },
     plant: {
-      hint: '你可以点击所上传图片的任意位置来藏起你的🐄！',
+      hint: '上传一张图片，点任意位置，把你的🐄藏进去！',
       upload: '🐄降临！',
       download: '一起来找🐄！',
     },
@@ -1031,7 +1097,7 @@ button {
   async function loadFile(file) {
     const st = cur();
     if (st.busy) return;
-    if (file.type && !file.type.startsWith('image/')) { toast('这不是图片，换一张照片试试'); return; }
+    if (file.type && !file.type.startsWith('image/')) { toast('这个文件不是图片，换一张试试'); return; }
 
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -1070,7 +1136,7 @@ button {
       }
     } catch (e) {
       console.error(e);
-      toast('这张照片处理失败了，换一张试试');
+      toast('这张图片处理失败了，换一张试试');
       st.img = null; st.cows = [];
     }
     st.busy = false;
@@ -1112,7 +1178,7 @@ button {
   async function download() {
     const st = cur();
     if (!st.img || st.busy) return;
-    if (!st.cows.length) { toast('先点一下照片，种下至少一只🐄'); return; }
+    if (!st.cows.length) { toast('先点一下图片，种下至少一只🐄'); return; }
 
     const blob = await encode(st);
     if (!blob) { st.blobP = null; toast('图片生成失败了，再试一次'); return; }
@@ -1172,13 +1238,13 @@ button {
       const n = st.cows.length;
       if (mode === 'hide') {
         const k = st.cows.filter((c) => c.found).length;
-        if (k === 0) status = `照片上有 ${n} 只🐄，点一点把它们找出来`;
-        else if (k < n) status = `照片上有 ${n} 只🐄，已找到 ${k} 只`;
+        if (k === 0) status = `图片上有 ${n} 只🐄，点一点把它们找出来`;
+        else if (k < n) status = `图片上有 ${n} 只🐄，已找到 ${k} 只`;
         else status = `${n} 只🐄全部找到了，共奖励 ${n} 杯🥛`;
       } else if (!n) {
-        status = '照片上有 0 只🐄，点一下照片种一只';
+        status = '图片上有 0 只🐄，点一下图片种一只';
       } else {
-        status = `照片上有 ${n} 只🐄（最多 ${MAX_COWS} 只）`;
+        status = `图片上有 ${n} 只🐄（最多 ${MAX_COWS} 只）`;
       }
     }
     if (!st.busy) el.status.textContent = status;
@@ -1276,7 +1342,7 @@ button {
   states.plant.canvas.addEventListener('click', (e) => {
     const st = states.plant;
     if (!st.img || st.busy || !st.edge) return;
-    if (st.cows.length >= MAX_COWS) { toast(`一张照片最多藏 ${MAX_COWS} 只🐄，可以先撤回一只`); return; }
+    if (st.cows.length >= MAX_COWS) { toast(`一张图片最多藏 ${MAX_COWS} 只🐄，可以先撤回一只`); return; }
     const r = st.canvas.getBoundingClientRect();
     if (!r.width || !r.height) return;
     const ix = clamp((e.clientX - r.left) / r.width, 0, 1) * st.canvas.width;
@@ -1342,6 +1408,26 @@ button {
   el.done.addEventListener('click', closeDone);
   el.sheetClose.addEventListener('click', closeSheet);
   el.sheetOk.addEventListener('click', () => { closeSheet(); showDone(); });
+
+  /* ---------- 彩蛋小问答：这张图上有几只🐄？（正确答案 4） ---------- */
+  const quizOpts = Array.from(document.querySelectorAll('.quiz-opt'));
+  const quizMsg = $('quiz-msg'), quizPrize = $('quiz-prize'), eggArrow = $('egg-arrow');
+  quizOpts.forEach((btn) => btn.addEventListener('click', () => {
+    const n = Number(btn.dataset.n);
+    if (n === 4) {
+      btn.classList.add('right');
+      quizOpts.forEach((b) => { b.disabled = true; });
+      quizMsg.textContent = '答对了！奖励你一只🐄';
+      quizPrize.hidden = false;
+      eggArrow.setAttribute('hidden', '');
+      return;
+    }
+    btn.classList.add('wrong');
+    btn.disabled = true;
+    // 选 5：把奶牛猫也算进去了——用箭头指给玩家看
+    quizMsg.textContent = n === 5 ? '不对哦！除非你认为它也是奶牛。。。' : '不对哦，再数数看';
+    eggArrow.toggleAttribute('hidden', n !== 5);      // SVG 元素没有 .hidden 属性，得直接改标签属性
+  }));
 
   /* ---------- 启动 ---------- */
   lock(true);
