@@ -228,12 +228,35 @@ button {
 @keyframes sink {
   0%   { transform: translate(-50%, -100%) scale(1);   opacity: 1; }
   80%  { opacity: 1; }
-  100% { transform: translate(-50%, -100%) scale(.04); opacity: 0; }
+  100% { transform: translate(-50%, -100%) scale(var(--to, .04)); opacity: 0; }
 }
 @keyframes ring {
   0%   { transform: scale(.3); opacity: 1; }
   100% { transform: scale(1.5); opacity: 0; }
 }
+
+.sizes {
+  flex: none;
+  align-self: center;
+  width: min(100%, 270px);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 3px;
+  background: var(--milk);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+}
+.size {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  min-height: 32px;
+  padding: 2px 6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+.size[aria-checked="true"] { background: var(--ink); color: var(--milk); }
 
 .status {
   flex: none;
@@ -376,6 +399,21 @@ button {
   line-height: 1.7;
   color: rgba(0, 0, 0, .5);
 }
+.foot .feedback {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 5px 16px;
+  background: var(--milk);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 3px 0 var(--ink);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 800;
+  line-height: 1.6;
+  text-decoration: none;
+}
+.foot .feedback:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
 .foot span, .intro-foot span { display: inline-block; }
 .foot .pull { margin-left: -0.45em; }   /* 全角“？”右侧自带半个字的空白，往回收一点，两条竖线两边才一样宽 */
 .intro-foot {
@@ -530,6 +568,12 @@ button {
     <div class="fx" id="fx" aria-hidden="true"></div>
   </div>
 
+  <div class="sizes" id="sizes" role="radiogroup" aria-label="要种的🐄的大小" hidden>
+    <button class="size" type="button" role="radio" data-size="S" aria-checked="true">小🐄</button>
+    <button class="size" type="button" role="radio" data-size="M" aria-checked="false">中🐄</button>
+    <button class="size" type="button" role="radio" data-size="L" aria-checked="false">大🐄</button>
+  </div>
+
   <div class="status" aria-live="polite">
     <span id="status"></span>
     <button class="undo" id="undo" type="button" hidden>撤回一只</button>
@@ -585,6 +629,7 @@ button {
     <p class="bye">祝你玩得开心！</p>
   </div>
   <footer class="foot">
+    <a class="feedback" href="https://sqwnhi2l.jsjform.com/f/vSmn2m" target="_blank" rel="noopener">给🐄提意见</a>
     <p>© 2026｜🐄在哪里？<span class="pull">｜</span>l1d</p>
     <p><span>本网页不会采集您的任何个人图文信息，</span><span>内容仅供娱乐。</span></p>
   </footer>
@@ -670,7 +715,7 @@ button {
     intro: $('intro'), introGo: $('intro-go'),
     tabs: { hide: $('tab-hide'), plant: $('tab-plant') },
     hint: $('hint'), stage: $('stage'), empty: $('empty'), fx: $('fx'), marks: $('marks'),
-    status: $('status'), undo: $('undo'),
+    status: $('status'), undo: $('undo'), sizes: $('sizes'),
     upload: $('upload'), uploadLabel: $('upload-label'),
     download: $('download'), downloadLabel: $('download-label'),
     file: $('file'),
@@ -1065,9 +1110,17 @@ button {
   }
 
   /* ---------- 模式二：点哪儿种哪儿，自动站到最近的一条线上（斜线、树干也行） ---------- */
+  /* 种🐄时可选的三档大小：小＝和捉迷藏里一样小，中、大依次放大 */
+  const PLANT_SIZES = { S: 1, M: 3, L: 7 };
+  let plantSize = 'S';
+  function plantCowSize(st) {
+    const base = Math.min(st.canvas.width, st.canvas.height) * COW_RATIO * PLANT_SIZES[plantSize];
+    return Math.max(MIN_COW, Math.round(base / 2) * 2);
+  }
+
   function plantAt(st, ix, iy) {
     const { edge } = st;
-    const size = cowSize(st, iy), sp = cowSprite(size);
+    const size = plantCowSize(st), sp = cowSprite(size);
     const ax = clamp(Math.floor(ix / edge.sx), 0, edge.aw - 1);
     const ay = clamp(Math.floor(iy / edge.sy), 0, edge.ah - 1);
     const r = Math.max(3, Math.round(Math.min(edge.aw, edge.ah) * 0.05));
@@ -1248,6 +1301,7 @@ button {
     }
     if (!st.busy) el.status.textContent = status;
     el.undo.hidden = !(mode === 'plant' && has && st.cows.length > 0);
+    el.sizes.hidden = !(mode === 'plant' && has);
     layoutMarks();
   }
 
@@ -1297,6 +1351,7 @@ button {
     if (!REDUCED) {
       const pop = document.createElement('span');
       pop.className = 'pop'; pop.textContent = '🐄'; pop.style.left = x + 'px'; pop.style.top = y + 'px';
+      pop.style.setProperty('--to', String(clamp(cow.size * toStage(st, 0, 0).k / 46, 0.04, 1)));   // 缩到实际种下的大小
       el.fx.appendChild(pop);
       setTimeout(() => pop.remove(), 700);
     }
@@ -1392,6 +1447,12 @@ button {
     setTimeout(() => cheer.remove(), 1600);
     if (st.cows.every((o) => o.found)) toast('🐄全部找到了！');
   });
+
+  const sizeBtns = Array.from(el.sizes.querySelectorAll('.size'));
+  sizeBtns.forEach((btn) => btn.addEventListener('click', () => {
+    plantSize = btn.dataset.size;
+    sizeBtns.forEach((b) => b.setAttribute('aria-checked', String(b === btn)));
+  }));
 
   el.undo.addEventListener('click', () => {
     const st = states.plant;
