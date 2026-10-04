@@ -45,6 +45,7 @@ button {
 
 /* ---------- 主体：恰好一屏 ---------- */
 .main {
+  position: relative;
   height: 100vh;
   height: 100svh;
   max-width: 520px;
@@ -52,11 +53,34 @@ button {
   padding:
     calc(env(safe-area-inset-top, 0px) + 12px)
     calc(env(safe-area-inset-right, 0px) + var(--pad))
-    calc(env(safe-area-inset-bottom, 0px) + 14px)
+    calc(env(safe-area-inset-bottom, 0px) + 19px)
     calc(env(safe-area-inset-left, 0px) + var(--pad));
   display: flex;
   flex-direction: column;
   gap: clamp(8px, 1.5vh, 14px);
+}
+
+/* 第一屏最底下一个很淡的小箭头：提示下面还有内容，往下滑之后消失 */
+.more {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
+  width: 20px;
+  height: 9px;
+  margin-left: -10px;
+  fill: none;
+  stroke: rgba(0, 0, 0, .34);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  transition: opacity .3s;
+  animation: nudge 2.8s ease-in-out infinite;
+}
+.more.gone { opacity: 0; }
+@keyframes nudge {
+  0%, 100% { transform: translateY(-2px); }
+  50%      { transform: translateY(1px); }
 }
 
 .title {
@@ -524,7 +548,7 @@ button {
   .mark { font-size: 46px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #intro .card, .pop, .ring { animation: none; }
+  #intro .card, .pop, .ring, .more { animation: none; }
   .cheer { animation: none; transition: opacity .4s 1.1s; }
   .egg-arrow path { animation: none; stroke-dashoffset: 0; }
   .quiz-prize { animation: none; }
@@ -591,6 +615,7 @@ button {
   </div>
 
   <input type="file" id="file" accept="image/*" hidden>
+  <svg class="more" id="more" viewBox="0 0 24 10" aria-hidden="true"><path d="M3 2l9 6 9-6"/></svg>
 </main>
 
 <section class="egg" aria-labelledby="egg-title">
@@ -1464,6 +1489,8 @@ button {
   });
 
   window.addEventListener('resize', layoutMarks);
+  const more = $('more');
+  window.addEventListener('scroll', () => more.classList.toggle('gone', window.scrollY > 30), { passive: true });
   el.download.addEventListener('click', download);
   el.done.addEventListener('click', closeDone);
   el.sheetClose.addEventListener('click', closeSheet);
