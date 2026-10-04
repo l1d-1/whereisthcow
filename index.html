@@ -377,6 +377,7 @@ button {
   color: rgba(0, 0, 0, .5);
 }
 .foot span, .intro-foot span { display: inline-block; }
+.foot .pull { margin-left: -0.45em; }   /* 全角“？”右侧自带半个字的空白，往回收一点，两条竖线两边才一样宽 */
 .intro-foot {
   margin-top: 16px;
   font-size: 11px;
@@ -564,7 +565,7 @@ button {
     <figure class="egg-figure">
       <img class="egg-photo" id="egg-photo" width="1080" height="1440" decoding="async"
            alt="草地上站着一只黑白花的奶牛猫，旁边贴着一只🐄，树上、空调外机上和远处还藏着好几只带问号的小🐄">
-      <figcaption>找找这张图上有几只🐄</figcaption>
+      <figcaption>试着找找这张图上有几只🐄</figcaption>
       <svg class="egg-arrow" id="egg-arrow" viewBox="0 0 300 400" preserveAspectRatio="none" aria-hidden="true" hidden>
         <g class="under"><path d="M268 356 C274 332 262 310 238 298"/><path d="M245 309 L238 298 L251 297"/></g>
         <g class="over"><path d="M268 356 C274 332 262 310 238 298"/><path d="M245 309 L238 298 L251 297"/></g>
@@ -584,7 +585,7 @@ button {
     <p class="bye">祝你玩得开心！</p>
   </div>
   <footer class="foot">
-    <p>© 2026 l1d</p>
+    <p>© 2026｜🐄在哪里？<span class="pull">｜</span>l1d</p>
     <p><span>本网页不会采集您的任何个人图文信息，</span><span>内容仅供娱乐。</span></p>
   </footer>
 </section>
@@ -598,11 +599,10 @@ button {
     <div class="intro-text">
       <p>这是一个可以让你的照片里长出🐄的地方。</p>
       <p>你可以让🐄随机出现在照片里，再试着把它们找出来！</p>
-      <p>也可以自己种下🐄，把照片转给亲朋好友一起找！</p>
+      <p>也可以自己种下🐄，把照片转发给亲朋好友，让大家一起来找！</p>
     </div>
     <button class="go" id="intro-go" type="button">点任意位置，开始找🐄</button>
     <div class="intro-foot">
-      <p>© 2026 l1d</p>
       <p><span>本网页不会采集您的任何个人图文信息，</span><span>内容仅供娱乐。</span></p>
     </div>
   </div>
