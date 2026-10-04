@@ -502,7 +502,7 @@ button {
 #sheet img {
   display: block;
   width: 100%;
-  max-height: 52vh;
+  max-height: 44vh;
   object-fit: contain;
   background: var(--ink);
   border: 2px solid var(--ink);
@@ -510,9 +510,10 @@ button {
   -webkit-touch-callout: default;
   user-select: auto;
 }
-#sheet p { font-size: 15.5px; font-weight: 700; }
-#sheet .row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
-#sheet .row .go { margin-top: 0; }
+#sheet p { font-size: 13.5px; font-weight: 600; }
+#sheet .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#sheet .go { margin-top: 0; }
+#sheet .row .go { min-height: 44px; font-size: 15px; }
 #sheet .row .plain { background: var(--milk); }
 
 .toast {
@@ -687,10 +688,11 @@ button {
 <div class="overlay" id="sheet" role="dialog" aria-modal="true" aria-label="保存图片" tabindex="-1" hidden>
   <div class="card">
     <img id="sheet-img" alt="处理好的照片">
-    <p>长按上面的图片，选择“保存图片”</p>
+    <button class="go" id="sheet-save" type="button">保存图片</button>
+    <p>如果按钮没反应，长按上面的图片也能保存</p>
     <div class="row">
       <button class="go plain" id="sheet-close" type="button">关闭</button>
-      <button class="go" id="sheet-ok" type="button">存好了</button>
+      <button class="go plain" id="sheet-ok" type="button">存好了</button>
     </div>
   </div>
 </div>
@@ -739,7 +741,7 @@ button {
     download: $('download'), downloadLabel: $('download-label'),
     file: $('file'),
     done: $('done'), doneGo: $('done-go'),
-    sheet: $('sheet'), sheetImg: $('sheet-img'), sheetOk: $('sheet-ok'), sheetClose: $('sheet-close'),
+    sheet: $('sheet'), sheetImg: $('sheet-img'), sheetOk: $('sheet-ok'), sheetClose: $('sheet-close'), sheetSave: $('sheet-save'),
     toast: $('toast'),
   };
 
@@ -1235,13 +1237,47 @@ button {
     return `牛在哪里_${stamp}.${st.type === 'image/png' ? 'png' : 'jpg'}`;
   }
 
-  function openSheet(blob) {
+  let sheetBlob = null, sheetName = '';
+  function openSheet(blob, name) {
+    sheetBlob = blob; sheetName = name;
     const fr = new FileReader();
     fr.onload = () => { el.sheetImg.src = fr.result; el.sheet.hidden = false; lock(true); el.sheet.focus(); };
     fr.onerror = () => toast('图片生成失败了，再试一次');
     fr.readAsDataURL(blob);
   }
-  function closeSheet() { el.sheet.hidden = true; el.sheetImg.removeAttribute('src'); lock(false); }
+  function closeSheet() { el.sheet.hidden = true; el.sheetImg.removeAttribute('src'); sheetBlob = null; lock(false); }
+
+  /* 用一个带 download 属性的链接触发下载（系统浏览器里有效） */
+  function linkDownload(blob, name) {
+    const a = document.createElement('a');
+    const href = URL.createObjectURL(blob);
+    a.href = href; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 20000);
+  }
+
+  /* 弹层里的“保存图片”按钮：能直接存就直接存，存不了再提示长按 */
+  async function saveFromSheet() {
+    const blob = sheetBlob, name = sheetName;
+    if (!blob) return;
+    if (navigator.canShare) {                    // 系统的“存储图像 / 分享”面板（iPhone 上能存进相册）
+      const file = new File([blob], name, { type: blob.type });
+      let can = false;
+      try { can = navigator.canShare({ files: [file] }); } catch (e) { can = false; }
+      if (can) {
+        try { await navigator.share({ files: [file] }); closeSheet(); showDone(); return; }
+        catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+    }
+    if (/MicroMessenger/i.test(UA)) {            // 微信不允许网页直接保存文件
+      toast('微信里不能直接保存，请长按图片，选“保存图片”');
+      return;
+    }
+    linkDownload(blob, name);
+    toast('已经开始保存；如果没有反应，请长按图片保存');
+  }
 
   function showDone() { el.done.hidden = false; lock(true); el.done.focus(); }
   function closeDone() { el.done.hidden = true; lock(false); }
@@ -1255,24 +1291,18 @@ button {
     if (!blob) { st.blobP = null; toast('图片生成失败了，再试一次'); return; }
     const name = fileName(st);
 
-    if (IN_APP) { openSheet(blob); return; }     // 微信等 App 里不能直接下载
+    if (IN_APP) { openSheet(blob, name); return; }   // 微信等 App 里不一定能直接下载：先把图摆出来
 
     if (IS_IOS && navigator.canShare) {          // iPhone：走系统面板才能存进相册
       const file = new File([blob], name, { type: blob.type });
       if (navigator.canShare({ files: [file] })) {
         try { await navigator.share({ files: [file] }); showDone(); }
-        catch (e) { if (e && e.name !== 'AbortError') openSheet(blob); }
+        catch (e) { if (e && e.name !== 'AbortError') openSheet(blob, name); }
         return;
       }
     }
 
-    const a = document.createElement('a');
-    const href = URL.createObjectURL(blob);
-    a.href = href; a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(href), 20000);
+    linkDownload(blob, name);
     setTimeout(showDone, 350);
   }
 
@@ -1485,6 +1515,7 @@ button {
   el.download.addEventListener('click', download);
   el.done.addEventListener('click', closeDone);
   el.sheetClose.addEventListener('click', closeSheet);
+  el.sheetSave.addEventListener('click', saveFromSheet);
   el.sheetOk.addEventListener('click', () => { closeSheet(); showDone(); });
 
   /* ---------- 彩蛋小问答：这张图上有几只🐄？（正确答案 4） ---------- */
