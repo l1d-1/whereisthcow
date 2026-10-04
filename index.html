@@ -533,6 +533,7 @@ button {
 }
 
 @media (max-height: 560px) {
+  .size { min-height: 26px; }
   #intro .card { padding: 20px 18px 14px; }
   .intro-mark { margin: 2px 0 8px; }
   .intro-text { gap: 8px; font-size: 14.5px; line-height: 1.6; }
@@ -570,6 +571,18 @@ button {
 
   <p class="hint" id="hint">上传任意一张图片，开始和🐄玩捉迷藏吧！</p>
 
+  <div class="sizes" id="sizes" role="radiogroup" aria-label="要种的🐄的大小" hidden>
+    <button class="size" type="button" role="radio" data-size="S" aria-checked="true">小🐄</button>
+    <button class="size" type="button" role="radio" data-size="M" aria-checked="false">中🐄</button>
+    <button class="size" type="button" role="radio" data-size="L" aria-checked="false">大🐄</button>
+  </div>
+
+  <div class="sizes" id="levels" role="radiogroup" aria-label="捉迷藏的难度" hidden>
+    <button class="size" type="button" role="radio" data-level="easy" aria-checked="false">简单</button>
+    <button class="size" type="button" role="radio" data-level="normal" aria-checked="true">普通</button>
+    <button class="size" type="button" role="radio" data-level="hard" aria-checked="false">困难</button>
+  </div>
+
   <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-hide">
     <button class="empty" id="empty" type="button">
       <svg class="patch a"><use href="#blob-a"/></svg>
@@ -583,18 +596,6 @@ button {
     <canvas id="cv-plant" role="img" aria-label="可以点击种🐄的照片" hidden></canvas>
     <div class="marks" id="marks" aria-hidden="true"></div>
     <div class="fx" id="fx" aria-hidden="true"></div>
-  </div>
-
-  <div class="sizes" id="sizes" role="radiogroup" aria-label="要种的🐄的大小" hidden>
-    <button class="size" type="button" role="radio" data-size="S" aria-checked="true">小🐄</button>
-    <button class="size" type="button" role="radio" data-size="M" aria-checked="false">中🐄</button>
-    <button class="size" type="button" role="radio" data-size="L" aria-checked="false">大🐄</button>
-  </div>
-
-  <div class="sizes" id="levels" role="radiogroup" aria-label="捉迷藏的难度" hidden>
-    <button class="size" type="button" role="radio" data-level="easy" aria-checked="false">简单</button>
-    <button class="size" type="button" role="radio" data-level="normal" aria-checked="true">普通</button>
-    <button class="size" type="button" role="radio" data-level="hard" aria-checked="false">困难</button>
   </div>
 
   <div class="status" aria-live="polite">
@@ -1064,7 +1065,7 @@ button {
   const LEVELS = {
     easy:   { mult: 2, peek: 0,   hidden: false, decoys: false },   // 牛大一倍，完整站着，不专门往乱的地方躲
     normal: { mult: 1, peek: 0.4, hidden: true,  decoys: false },
-    hard:   { mult: 1, peek: 0.4, hidden: true,  decoys: true },    // 混进 3–5 只带问号的别的动物，只有🐄才算数
+    hard:   { mult: 1, peek: 0,   hidden: true,  decoys: true },    // 混进 3–5 只带问号的别的动物，只有🐄才算数；都露出全身，才分得清谁是谁
   };
   const DECOYS = ['🐼', '🦓', '🐧', '🐂', '🐃', '🐑', '🐐', '🐈'];
   let hideLevel = 'normal';
@@ -1358,6 +1359,7 @@ button {
     }
     if (!st.busy) el.status.textContent = status;
     el.undo.hidden = !(mode === 'plant' && has && st.cows.length > 0);
+    el.hint.hidden = has;                                   // 照片上传后，提示语让位给下面的选择条，照片区不用再让出一行
     el.sizes.hidden = !(mode === 'plant' && has);
     el.levels.hidden = !(mode === 'hide' && has);
     layoutMarks();
