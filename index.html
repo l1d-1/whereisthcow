@@ -577,12 +577,6 @@ button {
     <button class="size" type="button" role="radio" data-size="L" aria-checked="false">大🐄</button>
   </div>
 
-  <div class="sizes" id="levels" role="radiogroup" aria-label="捉迷藏的难度" hidden>
-    <button class="size" type="button" role="radio" data-level="easy" aria-checked="false">简单</button>
-    <button class="size" type="button" role="radio" data-level="normal" aria-checked="true">普通</button>
-    <button class="size" type="button" role="radio" data-level="hard" aria-checked="false">困难</button>
-  </div>
-
   <div class="stage" id="stage" role="tabpanel" aria-labelledby="tab-hide">
     <button class="empty" id="empty" type="button">
       <svg class="patch a"><use href="#blob-a"/></svg>
@@ -740,7 +734,7 @@ button {
     intro: $('intro'), introGo: $('intro-go'),
     tabs: { hide: $('tab-hide'), plant: $('tab-plant') },
     hint: $('hint'), stage: $('stage'), empty: $('empty'), fx: $('fx'), marks: $('marks'),
-    status: $('status'), undo: $('undo'), sizes: $('sizes'), levels: $('levels'),
+    status: $('status'), undo: $('undo'), sizes: $('sizes'),
     upload: $('upload'), uploadLabel: $('upload-label'),
     download: $('download'), downloadLabel: $('download-label'),
     file: $('file'),
@@ -752,7 +746,7 @@ button {
   const makeState = (canvas) => ({
     canvas, ctx: canvas.getContext('2d'),
     img: null, url: null, type: 'image/jpeg',
-    cows: [], decoys: [], edge: null, blobP: null, busy: false,
+    cows: [], edge: null, blobP: null, busy: false,
   });
   const states = { hide: makeState($('cv-hide')), plant: makeState($('cv-plant')) };
   let mode = 'hide';
@@ -774,9 +768,8 @@ button {
 
   /* ---------- 🐄 贴图：按像素裁掉透明边，保证“脚”正好踩在线上 ---------- */
   const spriteCache = new Map();
-  function cowSprite(size, emoji = '🐄') {
-    const key = emoji + size;
-    if (spriteCache.has(key)) return spriteCache.get(key);
+  function cowSprite(size) {
+    if (spriteCache.has(size)) return spriteCache.get(size);
     const pad = Math.ceil(size * 0.5);
     const dim = size + pad * 2;
     const c = mkCanvas(dim, dim);
@@ -784,7 +777,7 @@ button {
     g.font = `${size}px ${EMOJI_FONT}`;
     g.textBaseline = 'alphabetic';
     g.fillStyle = '#000';
-    g.fillText(emoji, pad, pad + size * 0.9);
+    g.fillText('🐄', pad, pad + size * 0.9);
     const data = g.getImageData(0, 0, dim, dim).data;
     let x0 = dim, y0 = dim, x1 = -1, y1 = -1;
     for (let y = 0; y < dim; y++) {
@@ -797,7 +790,7 @@ button {
     }
     if (x1 < 0) { x0 = pad; y0 = pad; x1 = pad + size - 1; y1 = pad + size - 1; }
     const sprite = { canvas: c, sx: x0, sy: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
-    spriteCache.set(key, sprite);
+    spriteCache.set(size, sprite);
     return sprite;
   }
 
@@ -806,7 +799,7 @@ button {
      (cx, footY) 是踩在线上的那一点；angle 让它顺着斜线站（爬树干时接近 ±90°）；
      sink > 0 时下半身藏在线后面，只露出上半截。 */
   function drawCow(ctx, cow) {
-    const sp = cowSprite(cow.size, cow.emoji);
+    const sp = cowSprite(cow.size);
     const angle = cow.angle || 0;
     const sink = Math.round((cow.sink || 0) * sp.h);
     const left = -Math.floor(sp.w / 2), top = -sp.h + sink;
@@ -859,7 +852,7 @@ button {
   function redraw(st) {
     const { canvas, ctx } = st;
     ctx.drawImage(st.img, 0, 0, canvas.width, canvas.height);
-    st.cows.concat(st.decoys).forEach((c) => drawCow(ctx, c));
+    st.cows.forEach((c) => drawCow(ctx, c));
   }
 
   /* ---------- 读懂照片：哪里有“线”可以站，线朝哪个方向，周围乱不乱、颜色素不素 ---------- */
@@ -1034,17 +1027,17 @@ button {
   }
 
   /* 越靠照片上方（通常越远）越小一点，更像“真的在那儿” */
-  function cowSize(st, y, mult = 1) {
+  function cowSize(st, y) {
     const H = st.canvas.height;
     const depth = 0.85 + 0.4 * clamp(y / H, 0, 1);
-    const base = Math.min(st.canvas.width, H) * COW_RATIO * mult * depth * rand(0.94, 1.08);
+    const base = Math.min(st.canvas.width, H) * COW_RATIO * depth * rand(0.94, 1.08);
     return Math.max(MIN_COW, Math.round(base / 2) * 2);   // 偶数，保证“？”正好是一半
   }
   const randomQ = () => ['left', 'top', 'right'][Math.floor(Math.random() * 3)];
 
   /* 整只“🐄？”（含旋转）是否完全落在照片里 */
   function fits(st, cow) {
-    const W = st.canvas.width, H = st.canvas.height, sp = cowSprite(cow.size, cow.emoji);
+    const W = st.canvas.width, H = st.canvas.height, sp = cowSprite(cow.size);
     const a = cow.angle || 0, c = Math.cos(a), s = Math.sin(a);
     const topY = -(sp.h + cow.size * 0.7), halfW = sp.w / 2 + cow.size * 0.3;
     for (const [lx, ly] of [[-halfW, 0], [halfW, 0], [-halfW, topY], [halfW, topY]]) {
@@ -1054,28 +1047,19 @@ button {
     return true;
   }
   function fitUpright(st, cow) {            // 实在放不下：站直，并挪回照片里
-    const W = st.canvas.width, H = st.canvas.height, sp = cowSprite(cow.size, cow.emoji);
+    const W = st.canvas.width, H = st.canvas.height, sp = cowSprite(cow.size);
     cow.angle = 0;
     cow.cx = clamp(cow.cx, sp.w * 0.5 + cow.size * 0.4, W - sp.w * 0.5 - cow.size * 0.4);
     cow.footY = clamp(cow.footY, sp.h + cow.size * 0.75, H - 1);
     return cow;
   }
 
-  /* ---------- 模式一：随机藏 1–5 只，分三档难度 ---------- */
-  const LEVELS = {
-    easy:   { mult: 2, peek: 0,   hidden: false, decoys: false },   // 牛大一倍，完整站着，不专门往乱的地方躲
-    normal: { mult: 1, peek: 0.4, hidden: true,  decoys: false },
-    hard:   { mult: 1, peek: 0,   hidden: true,  decoys: true },    // 混进 3–5 只带问号的别的动物，只有🐄才算数；都露出全身，才分得清谁是谁
-  };
-  const DECOYS = ['🐼', '🦓', '🐧', '🐂', '🐃', '🐑', '🐐', '🐈'];
-  let hideLevel = 'normal';
-
+  /* ---------- 模式一：随机藏 1–5 只 ---------- */
   function hideRandomCows(st) {
     const { edge } = st;
-    const lv = LEVELS[hideLevel];
     const W = st.canvas.width, H = st.canvas.height;
     const n = 1 + Math.floor(Math.random() * MAX_COWS);
-    const size0 = Math.max(MIN_COW, Math.min(W, H) * COW_RATIO * lv.mult);
+    const size0 = Math.max(MIN_COW, Math.min(W, H) * COW_RATIO);
     const mx = Math.max(2, Math.ceil(size0 * 0.8 / edge.sx)), my = Math.max(2, Math.ceil(size0 * 0.8 / edge.sy));
 
     // 候选点：像样的线，按“好不好藏”加权
@@ -1096,8 +1080,8 @@ button {
           const i = y * edge.aw + x, v = edge.score[i];
           if (v < thr || v <= 0) continue;
           const busyN = Math.min(1, edge.busy[i] / edge.busyRef);
-          const hide = lv.hidden ? 0.12 + busyN * busyN : 1;                   // 周围越乱越好藏
-          const camo = lv.hidden ? 1 + 0.8 * (1 - Math.min(1, edge.satAvg[i] / 0.35)) : 1;   // 黑白灰的地方更容易混进去
+          const hide = 0.12 + busyN * busyN;                                   // 周围越乱越好藏
+          const camo = 1 + 0.8 * (1 - Math.min(1, edge.satAvg[i] / 0.35));     // 黑白灰的地方更容易混进去
           const flat = Math.abs(Math.sin(edge.ang[i]));                        // 1 = 水平线，0 = 竖直线
           if (!edge.tilt[i] && flat < 0.8) continue;                           // 不够直的线：只挑接近水平的
           const upright = 0.12 + 0.88 * flat * flat;                           // 多数站着，偶尔爬墙爬树
@@ -1114,56 +1098,34 @@ button {
       return cands[lo];
     };
 
-    const placed = [];
+    const cows = [];
     let minD = Math.hypot(edge.aw, edge.ah) * 0.16;
-    const placeOne = (emoji) => {
+    for (let i = 0; i < n; i++) {
       let cow = null;
       for (let tries = 0; tries < 120 && !cow; tries++) {
         if (tries % 30 === 29) minD *= 0.7;
         const c = pick();
         if (!c) break;
-        if (!placed.every((o) => Math.hypot(o.ax - c.x, o.ay - c.y) >= minD)) continue;
+        if (!cows.every((o) => Math.hypot(o.ax - c.x, o.ay - c.y) >= minD)) continue;
         const px = (c.x + 0.5) * edge.sx, py = (c.y + 0.5) * edge.sy;
-        const size = cowSize(st, py, lv.mult), sp = cowSprite(size, emoji);
+        const size = cowSize(st, py), sp = cowSprite(size);
         const u = spotUp(edge, c.y * edge.aw + c.x);
         const foot = refineFoot(st, px, py, u, sp.w / 2, Math.ceil(Math.max(edge.sx, edge.sy) * 1.5) + 2);
         const made = {
-          cx: foot.x, footY: foot.y, size, angle: upAngle(u), emoji,
-          sink: Math.random() < lv.peek ? rand(0.3, 0.5) : 0,     // 一部分只露出上半身
+          cx: foot.x, footY: foot.y, size, angle: upAngle(u),
+          sink: Math.random() < 0.4 ? rand(0.3, 0.5) : 0,      // 四成的牛只露出上半身
           flip: Math.random() < 0.5, q: randomQ(), ax: c.x, ay: c.y,
         };
         if (fits(st, made)) cow = faceUphill(made);
       }
       if (!cow) {                                              // 照片上找不到线（比如纯色图）：随便找个地方站
-        const size = cowSize(st, H / 2, lv.mult);
+        const size = cowSize(st, H / 2);
         const ax = rand(mx, edge.aw - mx), ay = rand(my, edge.ah - my);
-        cow = fitUpright(st, { cx: ax * edge.sx, footY: ay * edge.sy, size, emoji, sink: 0, flip: Math.random() < 0.5, q: randomQ(), ax, ay });
+        cow = fitUpright(st, { cx: ax * edge.sx, footY: ay * edge.sy, size, sink: 0, flip: Math.random() < 0.5, q: randomQ(), ax, ay });
       }
-      placed.push(cow);
-      return cow;
-    };
-
-    const cows = [], decoys = [];
-    for (let i = 0; i < n; i++) cows.push(placeOne(undefined));
-    if (lv.decoys) {
-      const pool = DECOYS.slice().sort(() => Math.random() - 0.5);
-      const k = 3 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < k; i++) decoys.push(placeOne(pool[i]));
+      cows.push(cow);
     }
-    return { cows, decoys };
-  }
-
-  /* 换难度：在同一张照片上重新藏一次 */
-  function rehide() {
-    const st = states.hide;
-    if (!st.img || st.busy || !st.edge) return;
-    st.ctx.drawImage(st.img, 0, 0, st.canvas.width, st.canvas.height);
-    const hidden = hideRandomCows(st);
-    st.cows = hidden.cows; st.decoys = hidden.decoys;
-    st.cows.concat(st.decoys).forEach((c) => drawCow(st.ctx, c));
-    prepareBlob(st);
-    el.fx.textContent = '';
-    render();
+    return cows;
   }
 
   /* ---------- 模式二：点哪儿种哪儿，自动站到最近的一条线上（斜线、树干也行） ---------- */
@@ -1223,7 +1185,7 @@ button {
 
     st.busy = true;
     if (st.url) URL.revokeObjectURL(st.url);
-    st.url = url; st.img = img; st.cows = []; st.decoys = []; st.blobP = null;
+    st.url = url; st.img = img; st.cows = []; st.blobP = null;
     st.type = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
 
     const k = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
@@ -1239,9 +1201,8 @@ button {
     try {
       st.edge = buildEdgeMap(st.canvas);
       if (st === states.hide) {
-        const hidden = hideRandomCows(st);
-        st.cows = hidden.cows; st.decoys = hidden.decoys;
-        st.cows.concat(st.decoys).forEach((c) => drawCow(st.ctx, c));
+        st.cows = hideRandomCows(st);
+        st.cows.forEach((c) => drawCow(st.ctx, c));
         prepareBlob(st);
       }
     } catch (e) {
@@ -1359,9 +1320,8 @@ button {
     }
     if (!st.busy) el.status.textContent = status;
     el.undo.hidden = !(mode === 'plant' && has && st.cows.length > 0);
-    el.hint.hidden = has;                                   // 照片上传后，提示语让位给下面的选择条，照片区不用再让出一行
+    el.hint.hidden = has;                                   // 照片上传后提示语收起，把地方让给照片（种🐄模式里换成大小选择）
     el.sizes.hidden = !(mode === 'plant' && has);
-    el.levels.hidden = !(mode === 'hide' && has);
     layoutMarks();
   }
 
@@ -1376,7 +1336,7 @@ button {
   }
   /* 🐄身体（露出来的部分）的中心 */
   function cowCenter(cow) {
-    const sp = cowSprite(cow.size, cow.emoji), a = cow.angle || 0;
+    const sp = cowSprite(cow.size), a = cow.angle || 0;
     const up = sp.h * (1 - (cow.sink || 0)) / 2 + cow.size * 0.12;
     return { x: cow.cx + Math.sin(a) * up, y: cow.footY - Math.cos(a) * up };
   }
@@ -1480,25 +1440,6 @@ button {
       const tol = Math.max(cow.size * 0.9, 20 * scale);         // 手指点不了那么准：至少留 20px 的余量
       if (dist <= tol && dist < bestD) { hit = cow; bestD = dist; }
     }
-    const bubble = (item, text) => {
-      const c = cowCenter(item), p = toStage(st, c.x, c.y);
-      const cheer = document.createElement('span');
-      cheer.className = 'cheer';
-      cheer.textContent = text;
-      cheer.style.left = clamp(p.x, 70, Math.max(70, el.stage.clientWidth - 70)) + 'px';
-      cheer.style.top = Math.max(34, p.y - 20) + 'px';
-      el.fx.appendChild(cheer);
-      if (REDUCED) requestAnimationFrame(() => { cheer.style.opacity = '0'; });
-      setTimeout(() => cheer.remove(), 1600);
-    };
-    if (!hit) {                                                 // 点到的是混进来的别的动物？
-      let fake = null;
-      for (const d of st.decoys) {
-        const c = cowCenter(d), dist = Math.hypot(ix - c.x, iy - c.y);
-        if (dist <= Math.max(d.size * 0.9, 20 * scale) && dist < bestD) { fake = d; bestD = dist; }
-      }
-      if (fake) { bubble(fake, `这是${fake.emoji}，不是🐄！`); return; }
-    }
     const s = el.stage.getBoundingClientRect();
     if (!hit) {
       const ring = document.createElement('i');
@@ -1511,18 +1452,17 @@ button {
     }
     hit.found = true;
     render();
-    bubble(hit, '奖励你一杯🥛！');
+    const c = cowCenter(hit), p = toStage(st, c.x, c.y);
+    const cheer = document.createElement('span');
+    cheer.className = 'cheer';
+    cheer.textContent = '奖励你一杯🥛！';
+    cheer.style.left = clamp(p.x, 70, Math.max(70, el.stage.clientWidth - 70)) + 'px';
+    cheer.style.top = Math.max(34, p.y - 20) + 'px';
+    el.fx.appendChild(cheer);
+    if (REDUCED) requestAnimationFrame(() => { cheer.style.opacity = '0'; });
+    setTimeout(() => cheer.remove(), 1600);
     if (st.cows.every((o) => o.found)) toast('🐄全部找到了！');
   });
-
-  const levelBtns = Array.from(el.levels.querySelectorAll('.size'));
-  levelBtns.forEach((btn) => btn.addEventListener('click', () => {
-    if (states.hide.busy) return;
-    hideLevel = btn.dataset.level;
-    levelBtns.forEach((b) => b.setAttribute('aria-checked', String(b === btn)));
-    rehide();
-    if (hideLevel === 'hard') toast('有别的动物混进来了，只有🐄才算数');
-  }));
 
   const sizeBtns = Array.from(el.sizes.querySelectorAll('.size'));
   sizeBtns.forEach((btn) => btn.addEventListener('click', () => {
