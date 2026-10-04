@@ -706,8 +706,8 @@ button {
   /* ---------- 常量 ---------- */
   const MAX_SIDE  = 4096;    // 画布最长边上限（兼顾 iOS 画布内存限制）
   const MAX_COWS  = 5;       // 每张照片最多 5 只
-  const COW_RATIO = 0.026;   // 🐄 字号 ≈ 照片短边的 2.6%：缩略图里是个小点，放大才看得清
-  const MIN_COW   = 18;      // 小图里也保证放大后认得出来
+  const COW_RATIO = 0.013;   // 最小的🐄：字号 ≈ 照片短边的 1.3%，缩略图里几乎看不见，放大才看得清
+  const MIN_COW   = 14;      // 小图里也保证放大后认得出来
   const EDGE_MIN  = 16;      // 低于这个强度不算“边缘”
   const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif';
   const TEXT_FONT  = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Noto Sans SC",sans-serif';
@@ -957,7 +957,7 @@ button {
     }
 
     // 周围有多“乱”（越乱越好藏）、颜色有多“素”（越接近黑白灰，🐄越不显眼）
-    const r2 = Math.max(2, Math.round(Math.min(aw, ah) * COW_RATIO * 1.5));
+    const r2 = Math.max(2, Math.round(Math.min(aw, ah) * COW_RATIO * 3));
     const busy = boxMean(mag, aw, ah, r2), satAvg = boxMean(sat, aw, ah, r2);
     const sample = [];
     for (let i = 0; i < N; i += 7) sample.push(busy[i]);
@@ -1032,7 +1032,8 @@ button {
   function cowSize(st, y, mult = 1) {
     const H = st.canvas.height;
     const depth = 0.85 + 0.4 * clamp(y / H, 0, 1);
-    const base = Math.min(st.canvas.width, H) * COW_RATIO * mult * depth * rand(0.94, 1.08);
+    const floor = Math.min(st.canvas.width, H) * COW_RATIO;            // 再怎么“远小近大”，也不会小于最小标准
+    const base = Math.max(floor, floor * mult * depth * rand(0.94, 1.08));
     return Math.max(MIN_COW, Math.round(base / 2) * 2);   // 偶数，保证“？”正好是一半
   }
   const randomQ = () => ['left', 'top', 'right'][Math.floor(Math.random() * 3)];
@@ -1102,9 +1103,15 @@ button {
 
     const cows = [];
     let minD = Math.hypot(edge.aw, edge.ah) * 0.16;
+    // 每只🐄的大小随机（最小标准的 1 倍到 6 倍多），而且都是完整的一只，不会只露半身。
+    // 只有一两只时：都不会太小，免得太难找；
+    // 三只以上时：小的多、大的少，但保证其中一只够大，一眼就能看到。
+    const few = n <= 2;
+    const mults = Array.from({ length: n }, () => (few ? rand(3.6, 6.4) : 1 + 5.4 * Math.random() ** 2));
+    const showy = few ? -1 : Math.floor(Math.random() * n);
+    if (showy >= 0) mults[showy] = rand(5.6, 6.8);
     for (let i = 0; i < n; i++) {
-      // 每只🐄的大小随机：从最小（1 倍）到 3 倍多，小的多、大的少——有的一眼能看到，有的得放大找
-      const mult = 1 + 2.2 * Math.random() ** 2;
+      const mult = mults[i];
       let cow = null;
       for (let tries = 0; tries < 120 && !cow; tries++) {
         if (tries % 30 === 29) minD *= 0.7;
@@ -1117,7 +1124,7 @@ button {
         const foot = refineFoot(st, px, py, u, sp.w / 2, Math.ceil(Math.max(edge.sx, edge.sy) * 1.5) + 2);
         const made = {
           cx: foot.x, footY: foot.y, size, angle: upAngle(u),
-          sink: Math.random() < 0.4 ? rand(0.3, 0.5) : 0,      // 四成的牛只露出上半身
+          sink: 0,
           flip: Math.random() < 0.5, q: randomQ(), ax: c.x, ay: c.y,
         };
         if (fits(st, made)) cow = faceUphill(made);
@@ -1133,8 +1140,8 @@ button {
   }
 
   /* ---------- 模式二：点哪儿种哪儿，自动站到最近的一条线上（斜线、树干也行） ---------- */
-  /* 种🐄时可选的三档大小：小＝和捉迷藏里一样小，中、大依次放大 */
-  const PLANT_SIZES = { S: 1, M: 3, L: 7 };
+  /* 种🐄时可选的三档大小：小＝最小标准，中、大依次放大（中、大的实际大小和之前一样） */
+  const PLANT_SIZES = { S: 1, M: 6, L: 14 };
   let plantSize = 'S';
   function plantCowSize(st) {
     const base = Math.min(st.canvas.width, st.canvas.height) * COW_RATIO * PLANT_SIZES[plantSize];
