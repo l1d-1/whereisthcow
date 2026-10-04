@@ -1067,11 +1067,11 @@ button {
     return cow;
   }
 
-  /* ---------- 模式一：随机藏 1–5 只 ---------- */
+  /* ---------- 模式一：随机藏 2–5 只 ---------- */
   function hideRandomCows(st) {
     const { edge } = st;
     const W = st.canvas.width, H = st.canvas.height;
-    const n = 1 + Math.floor(Math.random() * MAX_COWS);
+    const n = 2 + Math.floor(Math.random() * (MAX_COWS - 1));    // 2–5 只
     const size0 = Math.max(MIN_COW, Math.min(W, H) * COW_RATIO);
     const mx = Math.max(2, Math.ceil(size0 * 0.8 / edge.sx)), my = Math.max(2, Math.ceil(size0 * 0.8 / edge.sy));
 
@@ -1114,11 +1114,13 @@ button {
     const cows = [];
     let minD = Math.hypot(edge.aw, edge.ah) * 0.16;
     // 每只🐄的大小随机（最小标准的 1 倍到 6 倍多），而且都是完整的一只，不会只露半身。
-    // 只有一两只时：都不会太小，免得太难找；
-    // 三只以上时：小的多、大的少，但保证其中一只够大，一眼就能看到。
+    // 每张照片里至少有一只接近最小、比较难找的；
+    // 三只以上时，还保证其中一只够大，一眼就能看到；只有两只时，另一只不会太小。
     const few = n <= 2;
     const mults = Array.from({ length: n }, () => (few ? rand(3.6, 6.4) : 1 + 5.4 * Math.random() ** 2));
-    const showy = few ? -1 : Math.floor(Math.random() * n);
+    const order = Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - 0.5);
+    const sneaky = order[0], showy = few ? -1 : order[1];
+    mults[sneaky] = rand(1, 1.6);
     if (showy >= 0) mults[showy] = rand(5.6, 6.8);
     for (let i = 0; i < n; i++) {
       const mult = mults[i];
