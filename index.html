@@ -524,6 +524,7 @@ button {
   transform: translateX(-50%);
   max-width: calc(100vw - 40px);
   padding: 9px 16px;
+  box-shadow: 0 0 0 2px var(--milk);
   background: var(--ink);
   color: var(--milk);
   border-radius: 14px;
@@ -763,6 +764,15 @@ button {
   let toastTimer = 0;
   function toast(text) {
     el.toast.textContent = text;
+    // 位置：平时贴在照片区的底边里面，不盖住下面的数量提示、大小选择和按钮；有弹层时放到屏幕顶部
+    if (!el.sheet.hidden || !el.done.hidden || !el.intro.hidden) {
+      el.toast.style.top = 'calc(env(safe-area-inset-top, 0px) + 14px)';
+      el.toast.style.bottom = 'auto';
+    } else {
+      const r = el.stage.getBoundingClientRect();
+      el.toast.style.top = 'auto';
+      el.toast.style.bottom = Math.max(12, window.innerHeight - r.bottom + 12) + 'px';
+    }
     el.toast.hidden = false;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2600);
